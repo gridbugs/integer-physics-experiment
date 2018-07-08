@@ -3,6 +3,8 @@ use num::{Num, NumCast, One, Signed, ToPrimitive, Zero};
 
 pub trait PhysicsNum: BaseNum + ::std::ops::Neg<Output = Self> + Signed + Ord {}
 
+impl PhysicsNum for i64 {}
+
 macro_rules! make_i64_wrapper {
     ($name:ident) => {
         custom_derive! {
