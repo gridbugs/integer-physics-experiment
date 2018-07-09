@@ -1,6 +1,5 @@
-use arith::{self, PhysicsNum};
-use cgmath::{vec2, Vector2};
-use num::One;
+use cgmath::{Vector2, vec2};
+use physics_num::PhysicsNum;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Aabb<N> {
@@ -21,7 +20,7 @@ impl<N: PhysicsNum> Aabb<N> {
     }
     pub fn from_centre_and_half_size(centre: Vector2<N>, half_size: Vector2<N>) -> Self {
         let top_left = centre - half_size;
-        let size = half_size * arith::two();
+        let size = half_size * PhysicsNum::two();
         Self::new(top_left, size)
     }
     fn bottom_right_coord(&self) -> Vector2<N> {
@@ -54,10 +53,10 @@ impl<N: PhysicsNum> Aabb<N> {
             && other.top_left.y + other.size.y >= self.top_left.y
     }
     pub fn centre(&self) -> Vector2<N> {
-        self.top_left + self.size / arith::two()
+        self.top_left + self.size / PhysicsNum::two()
     }
     pub fn split_four(&self) -> AabbSplitFour<N> {
-        let size = self.size / arith::two();
+        let size = self.size / PhysicsNum::two();
         AabbSplitFour {
             top_left: Self::new(self.top_left, size),
             top_right: Self::new(vec2(self.top_left.x + size.x, self.top_left.y), size),

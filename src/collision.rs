@@ -1,5 +1,5 @@
-use arith::{self, PhysicsNum};
-use cgmath::{vec2, Vector2};
+use physics_num::{self, PhysicsNum};
+use cgmath::{Vector2, vec2};
 use line_segment::LineSegment;
 use num::{One, Zero};
 
@@ -30,17 +30,20 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
     let vertex_to_edge_start = edge.start - vertex;
     if cross.is_zero() {
         if vector2_cross_product(vertex_to_edge_start, vertex_movement).is_zero() {
-            let mult_a_x_movement_len2 = arith::dot(vertex_to_edge_start, vertex_movement);
+            let mult_a_x_movement_len2 =
+                physics_num::dot(vertex_to_edge_start, vertex_movement);
             let mult_b_x_movement_len2 =
-                arith::dot(vertex_to_edge_start + edge_vector, vertex_movement);
+                physics_num::dot(vertex_to_edge_start + edge_vector, vertex_movement);
             let (mult_min_x_movement_len2, mult_max_x_movement_len2) =
                 if mult_a_x_movement_len2 < mult_b_x_movement_len2 {
                     (mult_a_x_movement_len2, mult_b_x_movement_len2)
                 } else {
                     (mult_b_x_movement_len2, mult_a_x_movement_len2)
                 };
-            let movement_len2 = arith::magnitude2(vertex_movement);
-            if mult_max_x_movement_len2 < Zero::zero() || mult_min_x_movement_len2 > movement_len2 {
+            let movement_len2 = physics_num::magnitude2(vertex_movement);
+            if mult_max_x_movement_len2 < Zero::zero()
+                || mult_min_x_movement_len2 > movement_len2
+            {
                 return Err(NoCollision::ColinearNonOverlapping);;
             }
             if mult_min_x_movement_len2 <= Zero::zero() {
@@ -50,8 +53,10 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
                 let allowed_vertex_movement = {
                     let allowed_movement_x_movement_len2 =
                         vertex_movement * mult_min_x_movement_len2;
-                    let x = (allowed_movement_x_movement_len2.x - One::one()) / movement_len2;
-                    let y = (allowed_movement_x_movement_len2.y - One::one()) / movement_len2;
+                    let x =
+                        (allowed_movement_x_movement_len2.x - One::one()) / movement_len2;
+                    let y =
+                        (allowed_movement_x_movement_len2.y - One::one()) / movement_len2;
                     vec2(x, y)
                 };
                 return Ok(Collision::CollidesWithEdgeAfter(allowed_vertex_movement));
@@ -61,7 +66,8 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
     } else {
         let cross_abs = cross.abs();
         let cross_sign = cross.signum();
-        let vertex_multiplier_x_cross = vector2_cross_product(vertex_to_edge_start, edge_vector);
+        let vertex_multiplier_x_cross =
+            vector2_cross_product(vertex_to_edge_start, edge_vector);
         let vertex_multiplier_x_cross_abs = vertex_multiplier_x_cross * cross_sign;
         if vertex_multiplier_x_cross_abs < Zero::zero() {
             return Err(NoCollision::NonParallelNonIntersecting);
@@ -69,7 +75,8 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
         if vertex_multiplier_x_cross_abs > cross_abs {
             return Err(NoCollision::NonParallelNonIntersecting);
         }
-        let edge_multiplier_x_cross = vector2_cross_product(vertex_to_edge_start, vertex_movement);
+        let edge_multiplier_x_cross =
+            vector2_cross_product(vertex_to_edge_start, vertex_movement);
         let edge_multiplier_x_cross_abs = edge_multiplier_x_cross * cross_sign;
         if edge_multiplier_x_cross_abs < Zero::zero() {
             return Err(NoCollision::NonParallelNonIntersecting);
@@ -80,7 +87,8 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
         if vertex_multiplier_x_cross.is_zero() {
             return Ok(Collision::StartInsideEdge);
         }
-        let movement_to_intersection_point_x_cross = vertex_movement * vertex_multiplier_x_cross;
+        let movement_to_intersection_point_x_cross =
+            vertex_movement * vertex_multiplier_x_cross;
         let allowed_vertex_movement = {
             let one = <N as One>::one() * cross_sign;
             let x = if movement_to_intersection_point_x_cross.x.is_zero() {

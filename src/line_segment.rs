@@ -1,6 +1,6 @@
 use aabb::Aabb;
-use arith::PhysicsNum;
-use cgmath::{vec2, InnerSpace, Vector2};
+use physics_num::PhysicsNum;
+use cgmath::{Vector2, vec2};
 use shape::Collide;
 
 #[derive(Debug, Clone, Copy)]
@@ -36,10 +36,18 @@ impl<N: PhysicsNum> Collide<N> for LineSegment<N> {
         let bottom_right = vec2(x_max, y_max);
         Aabb::new(top_left, bottom_right - top_left)
     }
-    fn for_each_edge_facing<F: FnMut(LineSegment<N>)>(&self, _direction: Vector2<N>, mut f: F) {
+    fn for_each_edge_facing<F: FnMut(LineSegment<N>)>(
+        &self,
+        _direction: Vector2<N>,
+        mut f: F,
+    ) {
         f(*self);
     }
-    fn for_each_vertex_facing<F: FnMut(Vector2<N>)>(&self, _direction: Vector2<N>, mut f: F) {
+    fn for_each_vertex_facing<F: FnMut(Vector2<N>)>(
+        &self,
+        _direction: Vector2<N>,
+        mut f: F,
+    ) {
         f(self.start);
         f(self.end);
     }

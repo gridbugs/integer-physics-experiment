@@ -1,8 +1,8 @@
 use aabb::Aabb;
-use arith::{self, PhysicsNum};
+use physics_num::{self, PhysicsNum};
 use axis_aligned_rect::AxisAlignedRect;
 use best::BestMap;
-use cgmath::{vec2, InnerSpace, Vector2};
+use cgmath::Vector2;
 use collision::{self, Collision};
 use line_segment::LineSegment;
 use num::Zero;
@@ -23,7 +23,6 @@ fn for_each_single_direction_intersection<A, B, F, N>(
 {
     shape.for_each_vertex_facing(movement, |rel_vertex| {
         let abs_vertex = rel_vertex + position;
-        let vertex_movement = LineSegment::new(abs_vertex, abs_vertex + movement);
         other_shape.for_each_edge_facing(reverse_movement, |rel_edge| {
             let abs_edge = rel_edge.add_vector(other_position);
             match collision::vertex_moving_towards_edge(abs_vertex, movement, abs_edge) {
@@ -90,7 +89,9 @@ pub trait Collide<N: PhysicsNum> {
             |collision, abs_edge| {
                 let magnitude2 = match collision {
                     Collision::StartInsideEdge => Zero::zero(),
-                    Collision::CollidesWithEdgeAfter(movement) => arith::magnitude2(movement),
+                    Collision::CollidesWithEdgeAfter(movement) => {
+                        physics_num::magnitude2(movement)
+                    }
                 };
                 best_collision.insert_le(magnitude2, abs_edge);
             },
@@ -133,12 +134,13 @@ impl<N: PhysicsNum> Shape<N> {
     ) -> Option<CollisionInfo<N>> {
         match self {
             &Shape::AxisAlignedRect(ref moving) => match stationary {
-                &Shape::AxisAlignedRect(ref stationary) => moving.movement_collision_test(
-                    position,
-                    stationary,
-                    stationary_position,
-                    movement_vector,
-                ),
+                &Shape::AxisAlignedRect(ref stationary) => moving
+                    .movement_collision_test(
+                        position,
+                        stationary,
+                        stationary_position,
+                        movement_vector,
+                    ),
                 &Shape::LineSegment(ref stationary) => moving.movement_collision_test(
                     position,
                     stationary,

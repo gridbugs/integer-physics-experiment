@@ -1,6 +1,6 @@
 use aabb::Aabb;
-use arith::PhysicsNum;
-use cgmath::{vec2, Vector2};
+use physics_num::PhysicsNum;
+use cgmath::{Vector2, vec2};
 use line_segment::LineSegment;
 use num::Zero;
 use shape::Collide;
