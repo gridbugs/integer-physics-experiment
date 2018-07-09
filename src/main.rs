@@ -21,6 +21,7 @@ mod game;
 mod glutin_window;
 mod graphics;
 mod line_segment;
+mod loose_quad_tree;
 mod physics_num;
 mod pixel_num;
 mod shape;

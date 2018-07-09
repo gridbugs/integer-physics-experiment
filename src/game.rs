@@ -3,6 +3,7 @@ use cgmath::{Vector2, vec2};
 use pixel_num::sub_pixel_i64::{self, SubPixelI64};
 use shape::Shape;
 use axis_aligned_rect::AxisAlignedRect;
+use loose_quad_tree::LooseQuadTree;
 
 #[derive(Default, Debug)]
 pub struct InputModel {
@@ -69,6 +70,13 @@ impl EntityIdAllocator {
     }
 }
 
+#[derive(Debug)]
+struct SpatialInfo {
+    entity_id: EntityId,
+}
+
+type SpatialLooseQuadTree = LooseQuadTree<SpatialInfo, SubPixelI64>;
+
 pub struct RenderUpdate<'a> {
     pub position: Vector2<SubPixelI64>,
     pub shape: &'a Shape<SubPixelI64>,
@@ -82,10 +90,11 @@ pub struct GameState {
     shape: FnvHashMap<EntityId, Shape<SubPixelI64>>,
     colour: FnvHashMap<EntityId, [f32; 3]>,
     velocity: FnvHashMap<EntityId, Vector2<SubPixelI64>>,
+    quad_tree: SpatialLooseQuadTree,
 }
 
 impl GameState {
-    pub fn new(_size_hint: Vector2<f32>) -> Self {
+    pub fn new(size_hint: Vector2<f32>) -> Self {
         Self {
             player_id: None,
             entity_id_allocator: Default::default(),
@@ -93,6 +102,10 @@ impl GameState {
             shape: Default::default(),
             colour: Default::default(),
             velocity: Default::default(),
+            quad_tree: LooseQuadTree::new(vec2(
+                SubPixelI64::new_pixels_f32(size_hint.x),
+                SubPixelI64::new_pixels_f32(size_hint.y),
+            )),
         }
     }
     fn clear(&mut self) {
