@@ -220,57 +220,6 @@ fn position_after_movement(
     Some(position)
 }
 
-fn position_after_movement_(
-    id: EntityId,
-    position_table: &FnvHashMap<EntityId, Vector2<SubPixelI64>>,
-    shape_table: &FnvHashMap<EntityId, Shape<SubPixelI64>>,
-    quad_tree: &SpatialLooseQuadTree,
-    movement: Vector2<SubPixelI64>,
-) -> Option<Vector2<SubPixelI64>> {
-    if movement.x.is_zero() && movement.y.is_zero() {
-        return None;
-    }
-    if let Some(position) = position_table.get(&id) {
-        if let Some(shape) = shape_table.get(&id) {
-            let mut closest_collision = BestMap::new();
-            let start_aabb = shape.aabb(*position);
-            let end_aabb = shape.aabb(*position + movement);
-            let aabb = start_aabb.union(&end_aabb);
-            quad_tree.for_each_intersection(
-                &aabb,
-                |_other_aabb,
-                 SpatialInfo {
-                     entity_id: other_id,
-                 }| {
-                    if *other_id != id {
-                        if let Some(stationary_position) = position_table.get(other_id) {
-                            if let Some(stationary_shape) = shape_table.get(other_id) {
-                                if let Some(collision_info) = shape
-                                    .movement_collision_test(
-                                        *position,
-                                        stationary_shape,
-                                        *stationary_position,
-                                        movement,
-                                    ) {
-                                    closest_collision.insert_le(
-                                        collision_info.magnitude2,
-                                        collision_info.allowed_movement,
-                                    );
-                                }
-                            }
-                        }
-                    }
-                },
-            );
-            return match closest_collision.into_value() {
-                None => Some(position + movement),
-                Some(allowed_movement) => Some(position + allowed_movement),
-            };
-        }
-    }
-    None
-}
-
 impl GameState {
     pub fn new(size_hint: Vector2<f32>) -> Self {
         Self {
