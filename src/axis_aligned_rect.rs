@@ -2,7 +2,7 @@ use aabb::Aabb;
 use physics_num::PhysicsNum;
 use cgmath::{Vector2, vec2};
 use line_segment::LineSegment;
-use num::Zero;
+use num::{One, Zero};
 use shape::Collide;
 
 #[derive(Debug, Clone)]
@@ -45,7 +45,10 @@ impl<N: PhysicsNum> AxisAlignedRect<N> {
 
 impl<N: PhysicsNum> Collide<N> for AxisAlignedRect<N> {
     fn aabb(&self, top_left: Vector2<N>) -> Aabb<N> {
-        Aabb::new(top_left, self.dimensions)
+        Aabb::new(
+            top_left - vec2(One::one(), One::one()),
+            self.dimensions + vec2(PhysicsNum::two(), PhysicsNum::two()),
+        )
     }
     fn for_each_vertex_facing<F>(&self, direction: Vector2<N>, mut f: F)
     where

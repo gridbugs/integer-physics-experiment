@@ -20,6 +20,12 @@ pub enum NoCollision {
     NonParallelNonIntersecting,
 }
 
+fn reduce_one<N: PhysicsNum>(v: N) -> N {
+    let sign = v.signum();
+    let abs = v.abs();
+    sign * (abs - One::one())
+}
+
 pub fn vertex_moving_towards_edge<N: PhysicsNum>(
     vertex: Vector2<N>,
     vertex_movement: Vector2<N>,
@@ -90,16 +96,15 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
         let movement_to_intersection_point_x_cross =
             vertex_movement * vertex_multiplier_x_cross;
         let allowed_vertex_movement = {
-            let one = <N as One>::one() * cross_sign;
             let x = if movement_to_intersection_point_x_cross.x.is_zero() {
                 Zero::zero()
             } else {
-                (movement_to_intersection_point_x_cross.x - one) / cross
+                reduce_one(movement_to_intersection_point_x_cross.x) / cross
             };
             let y = if movement_to_intersection_point_x_cross.y.is_zero() {
                 Zero::zero()
             } else {
-                (movement_to_intersection_point_x_cross.y - one) / cross
+                reduce_one(movement_to_intersection_point_x_cross.y) / cross
             };
             vec2(x, y)
         };
@@ -160,6 +165,10 @@ mod test {
         assert_eq!(
             vertex_moving_towards_edge(v(0, 0), v(10, 0), ls(v(5, 5), v(5, -5))),
             Ok(Collision::CollidesWithEdgeAfter(v(4, 0)))
+        );
+        assert_eq!(
+            vertex_moving_towards_edge(v(0, 2), v(0, -1), ls(v(-1, 1), v(1, 1))),
+            Ok(Collision::CollidesWithEdgeAfter(v(0, 0)))
         );
     }
 }

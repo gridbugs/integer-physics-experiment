@@ -2,7 +2,7 @@ use aabb::Aabb;
 use physics_num::{self, PhysicsNum};
 use axis_aligned_rect::AxisAlignedRect;
 use best::BestMap;
-use cgmath::Vector2;
+use cgmath::{Vector2, vec2};
 use collision::{self, Collision};
 use line_segment::LineSegment;
 use num::Zero;
@@ -80,25 +80,30 @@ pub trait Collide<N: PhysicsNum> {
         Self: Sized,
         StationaryShape: Collide<N>,
     {
-        let mut best_collision: BestMap<N, LineSegment<N>> = BestMap::new();
+        let mut best_collision = BestMap::new();
         self.for_each_movement_intersection(
             position,
             stationary_shape,
             stationary_position,
             movement,
             |collision, abs_edge| {
-                let magnitude2 = match collision {
-                    Collision::StartInsideEdge => Zero::zero(),
+                let (magnitude2, allowed_movement) = match collision {
+                    Collision::StartInsideEdge => {
+                        (Zero::zero(), vec2(Zero::zero(), Zero::zero()))
+                    }
                     Collision::CollidesWithEdgeAfter(movement) => {
-                        physics_num::magnitude2(movement)
+                        (physics_num::magnitude2(movement), movement)
                     }
                 };
-                best_collision.insert_le(magnitude2, abs_edge);
+                best_collision.insert_le(magnitude2, (abs_edge, allowed_movement));
             },
         );
-        if let Some((magnitude2, line_segment)) = best_collision.into_key_and_value() {
+        if let Some((magnitude2, (line_segment, allowed_movement))) =
+            best_collision.into_key_and_value()
+        {
             Some(CollisionInfo {
                 magnitude2,
+                allowed_movement,
                 line_segment,
             })
         } else {
@@ -107,9 +112,11 @@ pub trait Collide<N: PhysicsNum> {
     }
 }
 
+#[derive(Debug)]
 pub struct CollisionInfo<N> {
-    magnitude2: N,
-    line_segment: LineSegment<N>,
+    pub magnitude2: N,
+    pub allowed_movement: Vector2<N>,
+    pub line_segment: LineSegment<N>,
 }
 
 #[derive(Debug, Clone)]

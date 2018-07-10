@@ -4,6 +4,9 @@ use pixel_num::sub_pixel_i64::{self, SubPixelI64};
 use shape::Shape;
 use axis_aligned_rect::AxisAlignedRect;
 use loose_quad_tree::LooseQuadTree;
+use line_segment::LineSegment;
+use best::BestMap;
+use num::Zero;
 
 #[derive(Default, Debug)]
 pub struct InputModel {
@@ -93,6 +96,57 @@ pub struct GameState {
     quad_tree: SpatialLooseQuadTree,
 }
 
+fn position_after_movement(
+    id: EntityId,
+    position_table: &FnvHashMap<EntityId, Vector2<SubPixelI64>>,
+    shape_table: &FnvHashMap<EntityId, Shape<SubPixelI64>>,
+    quad_tree: &SpatialLooseQuadTree,
+    movement: Vector2<SubPixelI64>,
+) -> Option<Vector2<SubPixelI64>> {
+    if movement.x.is_zero() && movement.y.is_zero() {
+        return None;
+    }
+    if let Some(position) = position_table.get(&id) {
+        if let Some(shape) = shape_table.get(&id) {
+            let mut closest_collision = BestMap::new();
+            let start_aabb = shape.aabb(*position);
+            let end_aabb = shape.aabb(*position + movement);
+            let aabb = start_aabb.union(&end_aabb);
+            quad_tree.for_each_intersection(
+                &aabb,
+                |_other_aabb,
+                 SpatialInfo {
+                     entity_id: other_id,
+                 }| {
+                    if *other_id != id {
+                        if let Some(stationary_position) = position_table.get(other_id) {
+                            if let Some(stationary_shape) = shape_table.get(other_id) {
+                                if let Some(collision_info) = shape
+                                    .movement_collision_test(
+                                        *position,
+                                        stationary_shape,
+                                        *stationary_position,
+                                        movement,
+                                    ) {
+                                    closest_collision.insert_le(
+                                        collision_info.magnitude2,
+                                        collision_info.allowed_movement,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                },
+            );
+            return match closest_collision.into_value() {
+                None => Some(position + movement),
+                Some(allowed_movement) => Some(position + allowed_movement),
+            };
+        }
+    }
+    None
+}
+
 impl GameState {
     pub fn new(size_hint: Vector2<f32>) -> Self {
         Self {
@@ -116,32 +170,64 @@ impl GameState {
         self.colour.clear();
         self.velocity.clear();
     }
+    fn add_entity(
+        &mut self,
+        position: Vector2<f32>,
+        shape: Shape<SubPixelI64>,
+        colour: [f32; 3],
+    ) -> EntityId {
+        let id = self.entity_id_allocator.allocate();
+        let position = vec2(
+            SubPixelI64::new_pixels_f32(position.x),
+            SubPixelI64::new_pixels_f32(position.y),
+        );
+        self.position.insert(id, position);
+
+        self.quad_tree
+            .insert(shape.aabb(position), SpatialInfo { entity_id: id });
+        self.shape.insert(id, shape);
+        self.colour.insert(id, colour);
+        id
+    }
     pub fn init_demo(&mut self) {
         self.clear();
-        let player_id = self.entity_id_allocator.allocate();
-        self.player_id = Some(player_id);
-        self.position.insert(
-            player_id,
-            vec2(
-                SubPixelI64::new_pixels_f32(32.),
-                SubPixelI64::new_pixels_f32(64.),
-            ),
-        );
-
-        self.shape.insert(
-            player_id,
+        let player_id = self.add_entity(
+            vec2(200., 50.),
             Shape::AxisAlignedRect(AxisAlignedRect::new(vec2(
                 SubPixelI64::new_pixels_f32(32.),
                 SubPixelI64::new_pixels_f32(64.),
             ))),
+            [1., 0., 0.],
         );
-        self.colour.insert(player_id, [1., 0., 0.]);
+
+        self.player_id = Some(player_id);
         self.velocity.insert(
             player_id,
             vec2(
                 SubPixelI64::new_pixels_f32(0.),
                 SubPixelI64::new_pixels_f32(0.),
             ),
+        );
+
+        self.add_entity(
+            vec2(50., 200.),
+            Shape::AxisAlignedRect(AxisAlignedRect::new(vec2(
+                SubPixelI64::new_pixels_f32(400.),
+                SubPixelI64::new_pixels_f32(20.),
+            ))),
+            [1., 1., 0.],
+        );
+
+        self.add_entity(
+            vec2(20., 20.),
+            Shape::LineSegment(LineSegment::new(
+                vec2(Zero::zero(), Zero::zero()),
+                vec2(
+                    SubPixelI64::new_pixels_f32(50.),
+                    SubPixelI64::new_pixels_f32(100.),
+                ),
+            )),
+            [0., 1., 0.],
         );
     }
     pub fn render_updates(&self) -> impl Iterator<Item = RenderUpdate> {
@@ -162,8 +248,14 @@ impl GameState {
             *velocity = update_player_velocity(*velocity, input_model);
         }
         for (id, velocity) in self.velocity.iter() {
-            if let Some(position) = self.position.get_mut(id) {
-                *position += *velocity;
+            if let Some(position) = position_after_movement(
+                *id,
+                &self.position,
+                &self.shape,
+                &self.quad_tree,
+                *velocity,
+            ) {
+                self.position.insert(*id, position);
             }
         }
     }
