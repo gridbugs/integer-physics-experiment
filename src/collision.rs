@@ -30,6 +30,7 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
     vertex: Vector2<N>,
     vertex_movement: Vector2<N>,
     edge: LineSegment<N>,
+    sign: N,
 ) -> Result<Collision<N>, NoCollision> {
     let edge_vector = edge.vector();
     let cross = vector2_cross_product(vertex_movement, edge_vector);
@@ -65,7 +66,9 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
                         (allowed_movement_x_movement_len2.y - One::one()) / movement_len2;
                     vec2(x, y)
                 };
-                return Ok(Collision::CollidesWithEdgeAfter(allowed_vertex_movement));
+                return Ok(Collision::CollidesWithEdgeAfter(
+                    allowed_vertex_movement * sign,
+                ));
             }
         }
         Err(NoCollision::ParallelNonColinear)
@@ -108,7 +111,9 @@ pub fn vertex_moving_towards_edge<N: PhysicsNum>(
             };
             vec2(x, y)
         };
-        Ok(Collision::CollidesWithEdgeAfter(allowed_vertex_movement))
+        Ok(Collision::CollidesWithEdgeAfter(
+            allowed_vertex_movement * sign,
+        ))
     }
 }
 
@@ -127,15 +132,15 @@ mod test {
     #[test]
     fn basic() {
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(3, 3), ls(v(0, 4), v(4, 0))),
+            vertex_moving_towards_edge(v(0, 0), v(3, 3), ls(v(0, 4), v(4, 0)), 1),
             Ok(Collision::CollidesWithEdgeAfter(v(1, 1)))
         );
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(3, 3), ls(v(0, 5), v(5, 0))),
+            vertex_moving_towards_edge(v(0, 0), v(3, 3), ls(v(0, 5), v(5, 0)), 1),
             Ok(Collision::CollidesWithEdgeAfter(v(2, 2)))
         );
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(2, 2), ls(v(0, 5), v(5, 0))),
+            vertex_moving_towards_edge(v(0, 0), v(2, 2), ls(v(0, 5), v(5, 0)), 1),
             Err(NoCollision::NonParallelNonIntersecting)
         );
     }
@@ -143,19 +148,19 @@ mod test {
     #[test]
     fn parallel() {
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(2, 1), ls(v(1, 1), v(3, 2))),
+            vertex_moving_towards_edge(v(0, 0), v(2, 1), ls(v(1, 1), v(3, 2)), 1),
             Err(NoCollision::ParallelNonColinear)
         );
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(2, 1), ls(v(4, 2), v(8, 4))),
+            vertex_moving_towards_edge(v(0, 0), v(2, 1), ls(v(4, 2), v(8, 4)), 1),
             Err(NoCollision::ColinearNonOverlapping)
         );
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(2, 1), ls(v(2, 1), v(8, 4))),
+            vertex_moving_towards_edge(v(0, 0), v(2, 1), ls(v(2, 1), v(8, 4)), 1),
             Ok(Collision::CollidesWithEdgeAfter(v(1, 0)))
         );
         assert_eq!(
-            vertex_moving_towards_edge(v(2, 1), v(2, 1), ls(v(0, 0), v(8, 4))),
+            vertex_moving_towards_edge(v(2, 1), v(2, 1), ls(v(0, 0), v(8, 4)), 1),
             Ok(Collision::StartInsideEdge)
         );
     }
@@ -163,11 +168,11 @@ mod test {
     #[test]
     fn perpendicular() {
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 0), v(10, 0), ls(v(5, 5), v(5, -5))),
+            vertex_moving_towards_edge(v(0, 0), v(10, 0), ls(v(5, 5), v(5, -5)), 1),
             Ok(Collision::CollidesWithEdgeAfter(v(4, 0)))
         );
         assert_eq!(
-            vertex_moving_towards_edge(v(0, 2), v(0, -1), ls(v(-1, 1), v(1, 1))),
+            vertex_moving_towards_edge(v(0, 2), v(0, -1), ls(v(-1, 1), v(1, 1)), 1),
             Ok(Collision::CollidesWithEdgeAfter(v(0, 0)))
         );
     }

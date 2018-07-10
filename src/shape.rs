@@ -5,7 +5,7 @@ use best::BestMap;
 use cgmath::{Vector2, vec2};
 use collision::{self, Collision};
 use line_segment::LineSegment;
-use num::Zero;
+use num::{One, Zero};
 
 fn for_each_single_direction_intersection<A, B, F, N>(
     shape: &A,
@@ -14,6 +14,7 @@ fn for_each_single_direction_intersection<A, B, F, N>(
     other_position: Vector2<N>,
     movement: Vector2<N>,
     reverse_movement: Vector2<N>,
+    sign: N,
     f: &mut F,
 ) where
     N: PhysicsNum,
@@ -25,7 +26,12 @@ fn for_each_single_direction_intersection<A, B, F, N>(
         let abs_vertex = rel_vertex + position;
         other_shape.for_each_edge_facing(reverse_movement, |rel_edge| {
             let abs_edge = rel_edge.add_vector(other_position);
-            match collision::vertex_moving_towards_edge(abs_vertex, movement, abs_edge) {
+            match collision::vertex_moving_towards_edge(
+                abs_vertex,
+                movement,
+                abs_edge,
+                sign,
+            ) {
                 Ok(collision) => f(collision, abs_edge),
                 Err(_) => (),
             }
@@ -57,6 +63,7 @@ pub trait Collide<N: PhysicsNum> {
             stationary_position,
             movement,
             reverse_movement,
+            One::one(),
             &mut f,
         );
         for_each_single_direction_intersection(
@@ -66,6 +73,7 @@ pub trait Collide<N: PhysicsNum> {
             position,
             reverse_movement,
             movement,
+            -<N as One>::one(),
             &mut f,
         );
     }
