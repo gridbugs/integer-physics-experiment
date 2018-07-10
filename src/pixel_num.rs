@@ -120,8 +120,8 @@ pub mod sub_pixel_i64 {
     }
     pub fn vector_to_f32_pixel(v: Vector2<SubPixelI64>) -> Vector2<f32> {
         vec2(
-            (v.x.0 / SUB_PIXELS_PER_PIXEL) as f32,
-            (v.y.0 / SUB_PIXELS_PER_PIXEL) as f32,
+            v.x.0 as f32 / SUB_PIXELS_PER_PIXEL as f32,
+            v.y.0 as f32 / SUB_PIXELS_PER_PIXEL as f32,
         )
     }
 }
