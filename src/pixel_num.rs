@@ -85,12 +85,13 @@ macro_rules! make_i64_wrapper {
 
 pub mod sub_pixel_i64 {
 
+    use num::Zero;
     use physics_num::PhysicsNum;
     use super::*;
     use self::pixel_i64::PixelI64;
     use cgmath::{Vector2, vec2};
     make_i64_wrapper!(SubPixelI64);
-    const SUB_PIXELS_PER_PIXEL: i64 = 256;
+    pub const SUB_PIXELS_PER_PIXEL: i64 = 256;
     const SUB_PIXELS_PER_PIXEL_SQUARED: i64 = 65536;
     impl SubPixelI64 {
         pub fn new_pixels_f32(pixels: f32) -> Self {
@@ -123,6 +124,15 @@ pub mod sub_pixel_i64 {
             v.x.0 as f32 / SUB_PIXELS_PER_PIXEL as f32,
             v.y.0 as f32 / SUB_PIXELS_PER_PIXEL as f32,
         )
+    }
+    pub fn vector_to_f32_sub_pixel(v: Vector2<SubPixelI64>) -> Vector2<f32> {
+        vec2(v.x.0 as f32, v.y.0 as f32)
+    }
+    pub fn vector_from_f32_sub_pixel(v: Vector2<f32>) -> Vector2<SubPixelI64> {
+        vec2(SubPixelI64::new(v.x as i64), SubPixelI64::new(v.y as i64))
+    }
+    pub fn vector_is_zero(v: Vector2<SubPixelI64>) -> bool {
+        v.x.is_zero() && v.y.is_zero()
     }
 }
 

@@ -1,5 +1,5 @@
 use fnv::FnvHashMap;
-use cgmath::{Vector2, vec2};
+use cgmath::{InnerSpace, Vector2, vec2};
 use pixel_num::sub_pixel_i64::{self, SubPixelI64};
 use shape::Shape;
 use axis_aligned_rect::AxisAlignedRect;
@@ -96,7 +96,131 @@ pub struct GameState {
     quad_tree: SpatialLooseQuadTree,
 }
 
+enum MovementStep {
+    NoMovement,
+    NoCollision {
+        destination: Vector2<SubPixelI64>,
+    },
+    Collision {
+        allowed_movement: Vector2<SubPixelI64>,
+        destination: Vector2<SubPixelI64>,
+        line_segment: LineSegment<SubPixelI64>,
+    },
+}
+
+fn movement_step(
+    id: EntityId,
+    position: Vector2<SubPixelI64>,
+    position_table: &FnvHashMap<EntityId, Vector2<SubPixelI64>>,
+    shape_table: &FnvHashMap<EntityId, Shape<SubPixelI64>>,
+    quad_tree: &SpatialLooseQuadTree,
+    movement: Vector2<SubPixelI64>,
+) -> MovementStep {
+    if movement.x.is_zero() && movement.y.is_zero() {
+        return MovementStep::NoMovement;
+    }
+    if let Some(shape) = shape_table.get(&id) {
+        let mut closest_collision = BestMap::new();
+        let start_aabb = shape.aabb(position);
+        let end_aabb = shape.aabb(position + movement);
+        let aabb = start_aabb.union(&end_aabb);
+        quad_tree.for_each_intersection(
+            &aabb,
+            |_other_aabb,
+             SpatialInfo {
+                 entity_id: other_id,
+             }| {
+                if *other_id != id {
+                    if let Some(stationary_position) = position_table.get(other_id) {
+                        if let Some(stationary_shape) = shape_table.get(other_id) {
+                            if let Some(collision_info) = shape.movement_collision_test(
+                                position,
+                                stationary_shape,
+                                *stationary_position,
+                                movement,
+                            ) {
+                                closest_collision.insert_le(
+                                    collision_info.magnitude2,
+                                    (
+                                        collision_info.allowed_movement,
+                                        collision_info.line_segment,
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+            },
+        );
+        return match closest_collision.into_value() {
+            None => MovementStep::NoCollision {
+                destination: position + movement,
+            },
+            Some((allowed_movement, line_segment)) => MovementStep::Collision {
+                allowed_movement,
+                destination: position + allowed_movement,
+                line_segment,
+            },
+        };
+    }
+    MovementStep::NoMovement
+}
+
 fn position_after_movement(
+    id: EntityId,
+    position_table: &FnvHashMap<EntityId, Vector2<SubPixelI64>>,
+    shape_table: &FnvHashMap<EntityId, Shape<SubPixelI64>>,
+    quad_tree: &SpatialLooseQuadTree,
+    mut movement: Vector2<SubPixelI64>,
+) -> Option<Vector2<SubPixelI64>> {
+    let mut position = if let Some(position) = position_table.get(&id) {
+        *position
+    } else {
+        return None;
+    };
+    const MAX_ITERATIONS: usize = 16;
+    for _ in 0..MAX_ITERATIONS {
+        match movement_step(
+            id,
+            position,
+            position_table,
+            shape_table,
+            quad_tree,
+            movement,
+        ) {
+            MovementStep::NoMovement => return Some(position),
+            MovementStep::NoCollision { destination } => return Some(destination),
+            MovementStep::Collision {
+                allowed_movement,
+                destination,
+                line_segment,
+            } => {
+                position = destination;
+                let remaining_movement =
+                    sub_pixel_i64::vector_to_f32_sub_pixel(movement - allowed_movement);
+                let collision_surface_direction =
+                    sub_pixel_i64::vector_to_f32_sub_pixel(line_segment.vector())
+                        .normalize();
+                let slide_movement_float =
+                    remaining_movement.project_on(collision_surface_direction);
+                let remaining_to_slide_direction =
+                    (slide_movement_float - remaining_movement).normalize();
+                let padding = remaining_to_slide_direction * 0.1
+                    * sub_pixel_i64::SUB_PIXELS_PER_PIXEL as f32;
+                let slide_movement = sub_pixel_i64::vector_from_f32_sub_pixel(
+                    slide_movement_float + padding,
+                );
+                if sub_pixel_i64::vector_is_zero(slide_movement) {
+                    break;
+                }
+                movement = slide_movement
+            }
+        }
+    }
+    Some(position)
+}
+
+fn position_after_movement_(
     id: EntityId,
     position_table: &FnvHashMap<EntityId, Vector2<SubPixelI64>>,
     shape_table: &FnvHashMap<EntityId, Shape<SubPixelI64>>,
